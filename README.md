@@ -1,1 +1,1 @@
-# Sliding-Puzzle-Solver
+# Sliding Puzzle
