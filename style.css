@@ -7,11 +7,11 @@
     --clr-darkWood: #6a4b35;
     --clr-wood: #8b715f;
     --clr-lightWood: #d7cac1;
-    --fs-tile: 1.9rem;
+    --fs-tile: 2rem;
     --fs-hud: 1.4rem;
     --fw-tile: 700;
     --fw-hud: 400;
-    --btn-size: 100px;
+    --btn-size: 125px;
 }
 
 * {
@@ -43,8 +43,8 @@ body {
 
 #grid {
     display: grid;
-    grid-template-rows: repeat(4, var(--btn-size));
-    grid-template-columns: repeat(4, var(--btn-size));
+    grid-template-rows: repeat(3, var(--btn-size));
+    grid-template-columns: repeat(3, var(--btn-size));
 }
 
 #grid button {
@@ -75,8 +75,9 @@ body {
 }
 
 #hud button {
-    width: var(--btn-size);
-    padding: 5px;
+    width: calc(var(--btn-size) - 30px);
+    margin: 0 5px;
+    padding: 5px 0;
     font-weight: var(--fw-hud);
     letter-spacing: 0.025rem;
     outline: none;
@@ -96,45 +97,46 @@ body {
 
 #hud p {
     color: var(--clr-lightWood);
+    margin: 5px 0;
 }
 
 /* Small Device Changes */
-@media (max-width: 449px) {
+@media (max-width: 424px) {
+    :root {
+        --fs-tile: 1.9rem;
+        --fs-hud: 1.3rem;
+        --btn-size: 115px;
+    }
+}
+
+@media (max-width: 394px) {
     :root {
         --fs-tile: 1.8rem;
-        --fs-hud: 1.3rem;
-        --btn-size: 90px;
+        --fs-hud: 1.2rem;
+        --btn-size: 105px;
     }
 }
 
-@media (max-width: 409px) {
+@media (max-width: 364px) {
     :root {
         --fs-tile: 1.7rem;
-        --fs-hud: 1.2rem;
-        --btn-size: 80px;
+        --fs-hud: 1.1rem;
+        --btn-size: 95px;
     }
 }
 
-@media (max-width: 359px) {
+@media (max-width: 334px) {
     :root {
         --fs-tile: 1.6rem;
-        --fs-hud: 1.1rem;
-        --btn-size: 70px;
+        --fs-hud: 1rem;
+        --btn-size: 85px;
     }
 }
 
-@media (max-width: 319px) {
+@media (max-width: 304px) {
     :root {
         --fs-tile: 1.5rem;
-        --fs-hud: 1rem;
-        --btn-size: 60px;
-    }
-}
-
-@media (max-width: 279px) {
-    :root {   
-        --fs-tile: 1.4rem;
         --fs-hud: 0.9rem;
-        --btn-size: 50px;
+        --btn-size: 75px;
     }
 }

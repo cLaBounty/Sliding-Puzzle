@@ -1,6 +1,12 @@
 var totalSeconds;
 var timer;
 
+const SOLVED_GRID = [
+    [1, 2, 3],
+    [4, 5, 6],
+    [7, 8, 0]
+];
+
 const indexOf2D = (array, value) => {
     for (let i = 0; i < array.length; i++) {
         for (let j = 0; j < array[i].length; j++) {
@@ -10,12 +16,13 @@ const indexOf2D = (array, value) => {
     return -1;
 }
 
-const index2Dto1D = (i, j, rows) => {
-    return (i * rows) + j;
+const index2Dto1D = (i, j, columns) => {
+    return (i * columns) + j;
 }
 
+const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
 const formatTime = () => {
-    const timer = document.getElementById('time');
     const seconds = totalSeconds % 60;
     const minutes = parseInt(totalSeconds / 60);
     const hours = parseInt(minutes / 60);
@@ -39,88 +46,38 @@ const formatTime = () => {
     if (hours != 0)
         hourPart = hours + ":";
 
-    timer.innerHTML = hourPart + minPart + secPart;
+    document.getElementById('time').innerHTML = hourPart + minPart + secPart;
     totalSeconds++;
 }
 
-class Game {
-    constructor() {
-        this.moveCount = 0;
-        this.grid = [
-            [1, 2, 3, 4],
-            [5, 6, 7, 8],
-            [9, 10, 11, 12],
-            [13, 14, 15, 0]
-        ];
-    }
-
-    start() {
-        let gridArea = document.getElementById('grid');
-        gridArea.innerHTML = "";
-
-        // shuffle the grid
-        this.shuffle();
-
-        // create DOM elements for the tiles
-        for (let i = 0; i < this.grid.length; i++) {
-            for (let j = 0; j < this.grid[i].length; j++) {
-                let tile = document.createElement('button');
-                tile.innerHTML = this.grid[i][j];
-                gridArea.appendChild(tile);
-            }
-        }
-        gridArea.lastChild.id = 'blank';
-        gridArea.lastChild.innerHTML = "";
-    }
-
-    shuffle() {
-        // shuffle with 1000 random moves
-        for (let i = 0; i < 1000; i++) {
-            const blankIndex = this.getBlankIndex();
-            const blankNeighbors = this.getNeighbors(blankIndex);
-            const swapNum = blankNeighbors[Math.floor(Math.random() * blankNeighbors.length)];
-            this.updateGrid(swapNum, blankIndex);
-        }
-
-        // move blank space to bottom right
-        while (this.grid[3][3] != 0) {
-            const blankIndex = this.getBlankIndex();
-            const blankNeighbors = this.getNeighbors(blankIndex);
-            const swapNum = blankNeighbors[0];
-            this.updateGrid(swapNum, blankIndex);
-        }
-    }
-
-    reset() {
-        document.getElementById('count').innerHTML = 0;
-        document.getElementById('time').innerHTML = "0:00";
-        jQuery.ready(main()); // create a new instance
-    }
-
-    disable() {
-        $('#grid button').each(function() {
-            $(this).css('pointer-events', 'none');
-        });
+class Grid {
+    constructor(grid, gScore=0, parent=null, swapNum=0) {
+        this.grid = grid;
+        this.gScore = gScore;
+        this.hScore = this.get_hScore();
+        this.fScore = this.gScore + this.hScore;
+        this.parent = parent;
+        this.swapNum = swapNum;
     }
 
     getBelowTile(x, y) {
-        if (y == 3) return null;
-        return this.grid[x][y+1];
+        if (y == 2) return null;
+        return this.grid[x][y + 1];
     }
 
     getRightTile(x, y) {
-        if (x == 3) return null;
-        return this.grid[x+1][y];
+        if (x == 2) return null;
+        return this.grid[x + 1][y];
     }
 
     getAboveTile(x, y) {
         if (y == 0) return null;
-        return this.grid[x][y-1];
+        return this.grid[x][y - 1];
     }
 
     getLeftTile(x, y) {
         if (x == 0) return null;
-        return this.grid[x-1][y];
+        return this.grid[x - 1][y];
     }
 
     getNeighbors([x, y]) {
@@ -136,11 +93,87 @@ class Game {
         return indexOf2D(this.grid, 0);
     }
 
-    updateGrid(value, blankIndex) {
-        const valueIndex = indexOf2D(this.grid, value);
-        const tmp = this.grid[valueIndex[0]][valueIndex[1]];
-        this.grid[valueIndex[0]][valueIndex[1]] = this.grid[blankIndex[0]][blankIndex[1]];
-        this.grid[blankIndex[0]][blankIndex[1]] = tmp;
+    swap(value1, value2) {
+        const v1Index = indexOf2D(this.grid, value1);
+        const v2Index = indexOf2D(this.grid, value2);
+        const tmp = this.grid[v1Index[0]][v1Index[1]];
+        this.grid[v1Index[0]][v1Index[1]] = this.grid[v2Index[0]][v2Index[1]];
+        this.grid[v2Index[0]][v2Index[1]] = tmp;
+        this.updateScores();
+    }
+
+    isSolved() {
+        return JSON.stringify(this.grid) === JSON.stringify(SOLVED_GRID)
+    }
+
+    get_hScore() {
+        let manhattenDistanceSum = 0;
+        for (let i = 0; i < this.grid.length; i++) {
+            for (let j = 0; j < this.grid[i].length; j++) {
+                const solvedPosition = indexOf2D(SOLVED_GRID, this.grid[i][j]);
+                manhattenDistanceSum += Math.abs(solvedPosition[0] - i) + Math.abs(solvedPosition[1] - j);
+            }
+        }
+
+        return manhattenDistanceSum;
+    }
+
+    updateScores() {
+        this.hScore = this.get_hScore();
+        this.fScore = this.gScore + this.hScore;
+    }
+}
+
+class Game {
+    constructor() {
+        this.gameGrid = new Grid(JSON.parse(JSON.stringify(SOLVED_GRID)));
+    }
+
+    start() {
+        let gridArea = document.getElementById('grid');
+        gridArea.innerHTML = "";
+
+        // shuffle the grid
+        this.shuffle();
+
+        // create DOM elements for the tiles
+        for (let i = 0; i < this.gameGrid.grid.length; i++) {
+            for (let j = 0; j < this.gameGrid.grid[i].length; j++) {
+                let tile = document.createElement('button');
+                tile.innerHTML = this.gameGrid.grid[i][j];
+                gridArea.appendChild(tile);
+            }
+        }
+        gridArea.lastChild.id = 'blank';
+        gridArea.lastChild.innerHTML = "";
+    }
+
+    shuffle() {
+        // shuffle with 1000 random moves
+        for (let i = 0; i < 1000; i++) {
+            const blankIndex = this.gameGrid.getBlankIndex();
+            const blankNeighbors = this.gameGrid.getNeighbors(blankIndex);
+            const swapNum = blankNeighbors[Math.floor(Math.random() * blankNeighbors.length)];
+            this.gameGrid.swap(0, swapNum);
+        }
+
+        // move blank space to bottom right
+        while (this.gameGrid.grid[2][2] != 0) {
+            const blankIndex = this.gameGrid.getBlankIndex();
+            const blankNeighbors = this.gameGrid.getNeighbors(blankIndex);
+            const swapNum = blankNeighbors[0];
+            this.gameGrid.swap(0, swapNum);
+        }
+    }
+
+    disable() {
+        $('#grid button,#solve-btn').each(function() {
+            $(this).css('pointer-events', 'none');
+        });
+    }
+
+    updateGrid(value) {
+        this.gameGrid.swap(0, value);
     }
 
     updateDOMGrid(tile, value) {
@@ -150,25 +183,77 @@ class Game {
         tile.id = 'blank';
     }
 
-    updateCount() {
-        document.getElementById('count').innerHTML = ++this.moveCount;
+    getBlankIndex() {
+        return this.gameGrid.getBlankIndex();
+    }
+
+    getNeighbors([x, y]) {
+        return this.gameGrid.getNeighbors([x, y]);
     }
 
     isSolved() {
-        if (this.grid[0][0] == 1 && this.grid[0][1] == 2 && this.grid[0][2] == 3 && this.grid[0][3] == 4 &&
-            this.grid[1][0] == 5 && this.grid[1][1] == 6 && this.grid[1][2] == 7 && this.grid[1][3] == 8 &&
-            this.grid[2][0] == 9 && this.grid[2][1] == 10 && this.grid[2][2] == 11 && this.grid[2][3] == 12 &&
-            this.grid[3][0] == 13 && this.grid[3][1] == 14 && this.grid[3][2] == 15 && this.grid[3][3] == 0
-        ) {
-            return true;
+        return this.gameGrid.isSolved();
+    }
+
+    solve() {
+        let frontier = new TinyQueue([this.gameGrid], (a, b) => {
+            return a.fScore - b.fScore
+        });
+        let visited = new Set();
+
+        while (frontier.length > 0) {
+            const current = frontier.pop()
+
+            // Base Case: current grid is solved
+            if (current.isSolved()) {
+                let solution = [];
+                let temp = current;
+
+                while (temp.parent != null) {
+                    solution.unshift(temp.swapNum);
+                    temp = temp.parent;
+                }
+
+                return solution;
+            }
+
+            // Recursive Case: add children to frontier
+            const blankIndex = current.getBlankIndex();
+            const neighbors = current.getNeighbors(blankIndex);
+
+            for (let i = 0; i < neighbors.length; i++) {
+                const gridCopy = JSON.parse(JSON.stringify(current.grid));
+                const child = new Grid(gridCopy, current.gScore + 1, current, neighbors[i]);
+                child.swap(0, neighbors[i]);
+
+                if (!visited.has(JSON.stringify(child.grid))) {
+                    frontier.push(child);
+                }
+            }
+
+            visited.add(JSON.stringify(current.grid));
+        }
+    }
+
+    async animateSolution() {
+        this.disable();
+
+        const solution = this.solve();
+        for (let i = 0; i < solution.length; i++) {
+            const index2D = indexOf2D(this.gameGrid.grid, solution[i]);
+            const index1D = index2Dto1D(index2D[0], index2D[1], this.gameGrid.grid[index2D[0]].length);
+            this.updateDOMGrid($('#game button')[index1D], solution[i]);
+            this.updateGrid(solution[i]);
+            await delay(500);
         }
 
-        return false;
+        clearInterval(timer);
+        if (window.confirm("You win! Play again?"))
+            location.reload();
     }
 }
 
-$('document').ready(main());
-function main() {
+$('document').ready(function() {
     let game = new Game();
     game.start();
     totalSeconds = 1;
@@ -180,16 +265,15 @@ function main() {
         
         // if the clicked tile is next to the blank space, then swap them
         if (game.getNeighbors(blankIndex).includes(value)) {
-            game.updateGrid(value, blankIndex);
+            game.updateGrid(value);
             game.updateDOMGrid(this, value);
-            game.updateCount();
 
             // check if the grid is solved
             if (game.isSolved()) {
                 setTimeout(function() {
                     clearInterval(timer);
-                    if (window.confirm("YOU WIN! Play again?"))
-                        game.reset();
+                    if (window.confirm("You win! Play again?"))
+                        location.reload();
                     else
                         game.disable();
                 }, 100); // allows for the DOM to update
@@ -208,7 +292,10 @@ function main() {
     });
 
     $('#reset-btn').on('click', function() {
-        clearInterval(timer);
-        game.reset();
+        location.reload();
     });
-}
+
+    $('#solve-btn').on('click', function() {
+        game.animateSolution();
+    });
+});
